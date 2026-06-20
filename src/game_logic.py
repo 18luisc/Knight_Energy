@@ -108,6 +108,19 @@ class GameState:
                 
         return valid_moves
 
+    def check_energy_penalty(self):
+        if self.current_turn == 'White':
+            if self.white_energy < 1:
+                self.white_points -= 3
+                self.current_turn = 'Black'
+                return True
+        else:
+            if self.black_energy < 1:
+                self.black_points -= 3
+                self.current_turn = 'White'
+                return True
+        return False
+
     # Ejecuta el movimiento del jugador actual a la nueva posición (new_pos).
     # Actualiza el tablero, la energía, los puntos y cambia el turno.
     def make_move(self, new_pos):
@@ -152,3 +165,38 @@ class GameState:
             self.board[new_row][new_col] = 'B'
             self.black_pos = new_pos
             self.current_turn = 'White'
+
+
+    # Reglas de finalización: Cuando no queden casillas con puntos o
+    # cuando ninguno de los jugadores pueda realizar movimientos
+    def is_terminal_state(self):
+        # Condition 1
+        remaining_points = 0
+        for row in self.board:
+            for cell in row:
+                if str(cell).startswith('P'):
+                    remaining_points += 1
+                    
+        if remaining_points == 0:
+            return True # Game over
+            
+        # Condition 2
+        # A player can move if they have energy (>0) and valid cells to jump to
+        white_moves = self.get_valid_moves('White')
+        black_moves = self.get_valid_moves('Black')
+        
+        white_can_move = len(white_moves) > 0 and self.white_energy > 0
+        black_can_move = len(black_moves) > 0 and self.black_energy > 0
+        
+        if not white_can_move and not black_can_move:
+            return True # Game over
+            
+        return False
+
+    def get_winner(self):
+        if self.white_points > self.black_points:
+            return "White"
+        elif self.black_points > self.white_points:
+            return "Black"
+        else:
+            return "Empate"
