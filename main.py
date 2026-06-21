@@ -1,19 +1,48 @@
+import random
 from src.game_logic import GameState
 
-if __name__ == "__main__":
-    game_state = GameState()
-    game_state.display_state()
+def main():
+    game = GameState()
+    game.print_board_terminal()
 
-    white_moves = game_state.get_valid_moves('White')
-    print(f"Movimientos válidos para el caballo blanco en {game_state.white_pos}: {white_moves}")
+    white_moves = game.get_valid_moves('White')    
+    print(f"Movimientos válidos para el caballo blanco en {game.white_pos}: {white_moves}")
+    print(white_moves)
+
+    turnos_jugados = 0
     
-    # Para probar voy a elegir el primer movimiento de la lista
-    if white_moves:
-        selected_move = white_moves[0]
-        print(f"\nCaballo Blanco a la posición: {selected_move}")
-        game_state.make_move(selected_move)
-        game_state.display_state()
-    else:
-        print("El caballo blanco no tiene movimientos válidoS.")
+    # Bucle hasta que el juego termine (por falta de estrellas o encierro/energía)
+    while not game.is_terminal_state():
+        turnos_jugados += 1
+        
+        # 1. Revisar penalización (si no tiene energía, pierde turno y puntos)
+        if game.check_energy_penalty():
+            continue
+            
+        # 2. Obtener movimientos del jugador actual
+        movimientos = game.get_valid_moves(game.current_turn)
+        
+        if movimientos:
+            # Elegir un movimiento al azar
+            movimiento_elegido = random.choice(movimientos)
+            game.make_move(movimiento_elegido)
+        else:
+            # Si tiene energía pero está encerrado (no tiene movimientos), pierde turno
+            if game.current_turn == 'WHITE':
+                game.current_turn = 'BLACK'
+            else:
+                game.current_turn = 'WHITE'
+
+    # --- CUANDO EL JUEGO TERMINA ---
+    print(f"\nJuego terminado después de {turnos_jugados} turnos.")
+    game.print_board_terminal()
+    
+    ganador = game.get_winner()
+    print(f"\nEl ganador es -> {ganador} \n")
+
+
+    
+if __name__ == "__main__":
+    main()
 
 

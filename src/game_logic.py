@@ -1,107 +1,69 @@
 import random
+from src.constants import BOARD_SIZE, INITIAL_ENERGY, PENALTY_POINTS, MOVE_COST
 
 class GameState:
     # Inicializa el estado del juego.
     def __init__(self):
-        # Player Variables
-        self.white_energy = 7
-        self.black_energy = 7
+        self.board = [[None for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
+
+        # Player status
         self.white_points = 0
-        self.black_points = 0
-        
-        # The game is always started by the machine (white horse)
-        self.current_turn = 'White' 
-        
-        # Horse positions (row, column)
+        self.white_energy = INITIAL_ENERGY
         self.white_pos = None
+        
+        self.black_points = 0
+        self.black_energy = INITIAL_ENERGY
         self.black_pos = None
 
-        # Board Representation (8x8 Matrix)
-        # We will use text strings to identify what is in each cell:
-        # '0' = Empty
-        # 'W' = White Horse, 'B' = Black Horse
-        # 'P2', 'P3'... = Points (Stars)
-        # 'E2', 'E3'... = Energy (Lightning Bolts)
-        self.board = [['0' for _ in range(8)] for _ in range(8)]
+        # The game is always started by the machine (white horse)
+        self.current_turn = 'WHITE' 
         
-        # Generate random positions when instantiating the game
-        self.generate_initial_state()
+        self._initialize_board()
     
     # Genera las posiciones iniciales de los caballos, los puntos y la energia.
-    def generate_initial_state(self):
-        # The initial positions of the horses, the points spaces, and the energy 
-        # spaces are random and cannot be the same.
-
+    def _initialize_board(self):
         # Generate all possible board coordinates (0,0) to (7,7)
-        all_coordinates = [(row, col) for row in range(8) for col in range(8)]
-
-        # Select 13 unique positions at random
-        # (1 white + 1 black + 7 stars + 4 energy = 13)
-        selected_positions = random.sample(all_coordinates, 13)
+        all_coordinates = [(row, col) for row in range(BOARD_SIZE) for col in range(BOARD_SIZE)]
+        random.shuffle(all_coordinates)
 
         # Assign the knights
-        self.white_pos = selected_positions[0]
-        self.black_pos = selected_positions[1]
-        self.board[self.white_pos[0]][self.white_pos[1]] = 'W'
-        self.board[self.black_pos[0]][self.black_pos[1]] = 'B'
+        self.white_pos = all_coordinates.pop()
+        self.black_pos = all_coordinates.pop()
 
         # Assign the stars (points)
-        point_values = [2, 3, 4, 5, 6, 8, 9]
-
-        for i, pos in enumerate(selected_positions[2:9]):
-            self.board[pos[0]][pos[1]] = f'P{point_values[i]}'
+        star_values = [2, 3, 4, 5, 6, 8, 9]
+        for val in star_values:
+            r, c = all_coordinates.pop()
+            self.board[r][c] = ("STAR", val)
 
         # Assign the rays (energy)
-        energy_values = [2, 3, 4, 5]
-        for i, pos in enumerate(selected_positions[9:13]):
-            self.board[pos[0]][pos[1]] = f'E{energy_values[i]}'
-        
-    def __str__(self):
-        # Print the board in a readable format
-        board_str = ""
-        for fila in self.board:
-            tablero_str += " ".join(fila) + "\n"
-        return tablero_str
-
-    # Por ahora voy a imprimir el estado actual en consola
-    def display_state(self):
-        print(f"--- Turno de: {self.current_turn} ---")
-        print(f"Blanco (Máquina): Puntos = {self.white_points}, Energía = {self.white_energy}")
-        print(f"Negro (Humano):   Puntos = {self.black_points}, Energía = {self.black_energy}")
-        print("-" * 35)
-        for row in self.board:
-            print("\t".join([str(celda).ljust(3) for celda in row]))
-        print("-" * 35)
+        energy_values = [2, 3, 4, 5] 
+        for val in energy_values:
+            r, c = all_coordinates.pop()
+            self.board[r][c] = ("ENERGY", val)
 
     # Retorna una lista de coordenadas (fila, columna) con los movimientos
     # validos para el jugador ('White' o 'Black').
     def get_valid_moves(self, player_color):
         # Determine the current position of the horse that is going to move
-        if player_color == 'White':
-            current_pos = self.white_pos
-        else:
-            current_pos = self.black_pos
+        current_pos = self.white_pos if player_color == 'WHITE' else self.black_pos
+        if not current_pos: return []
 
         row, col = current_pos
         
-        # Define the 8 possible combinations of a "L" movement
-        move_offsets = [
-            (-2, -1), (-2, 1),  # Two up, one left/right
-            (-1, -2), (-1, 2),  # One up, two left/right
-            (1, -2),  (1, 2),   # One down, two left/right
-            (2, -1),  (2, 1)    # Two down, one left/right
+        # Define the new possible moves with the 8 "L" movement combinations
+        possible_moves = [
+            (row-2, col-1), (row-2, col+1),  # Two up, one left/right
+            (row-1, col-2), (row-1, col+2),  # One up, two left/right
+            (row+1, col-2), (row+1, col+2),  # One down, two left/right
+            (row+2, col-1), (row+2, col+1)   # Two down, one left/right
         ]
         
         valid_moves = []
         
         # Calculate the new positions and filter the ones that go off the board
-        for row_offset, col_offset in move_offsets:
-            new_row = row + row_offset
-            new_col = col + col_offset
-            
-            # Within the board limits (0 to 7)
-            if 0 <= new_row < 8 and 0 <= new_col < 8:
-                
+        for new_row, new_col in possible_moves:
+            if 0 <= new_row < BOARD_SIZE and 0 <= new_col < BOARD_SIZE:
                 # Se debe evitar que un caballo caiga en la casilla donde esta el otro caballo o no?
                 if (new_row, new_col) != self.white_pos and (new_row, new_col) != self.black_pos:
                     valid_moves.append((new_row, new_col))
@@ -109,16 +71,14 @@ class GameState:
         return valid_moves
 
     def check_energy_penalty(self):
-        if self.current_turn == 'White':
-            if self.white_energy < 1:
-                self.white_points -= 3
-                self.current_turn = 'Black'
-                return True
-        else:
-            if self.black_energy < 1:
-                self.black_points -= 3
-                self.current_turn = 'White'
-                return True
+        if self.current_turn == 'WHITE' and self.white_energy < MOVE_COST:
+            self.white_points -= PENALTY_POINTS
+            self.current_turn = 'BLACK'
+            return True
+        elif self.current_turn == 'BLACK' and self.black_energy < MOVE_COST:
+            self.black_points -= PENALTY_POINTS
+            self.current_turn = 'WHITE'
+            return True
         return False
 
     # Ejecuta el movimiento del jugador actual a la nueva posición (new_pos).
@@ -126,45 +86,36 @@ class GameState:
     def make_move(self, new_pos):
         new_row, new_col = new_pos
         
-        # Identify whose turn it is and their old position
-        if self.current_turn == 'White':
-            old_pos = self.white_pos
-            self.white_energy -= 1 
+        # Charge the cost of the movement
+        if self.current_turn == 'WHITE':
+            self.white_energy -= MOVE_COST
         else:
-            old_pos = self.black_pos
-            self.black_energy -= 1 
+            self.black_energy -= MOVE_COST
             
         # Check what is in the destination cell before overwriting it
         dest_value = self.board[new_row][new_col]
         
-        if dest_value.startswith('P'):
-            # Extract the number after the 'P'
-            points_gained = int(dest_value[1:])
-            if self.current_turn == 'White':
-                self.white_points += points_gained
-            else:
-                self.black_points += points_gained
+        if dest_value is not None:
+            type, value = dest_value
+            if type == "STAR":
+                if self.current_turn == 'WHITE': self.white_points += value
+                else: 
+                    self.black_points += value
+            elif type == "ENERGY":
+                if self.current_turn == 'WHITE': self.white_energy += value
+                else: 
+                    self.black_energy += value
                 
-        elif dest_value.startswith('E'):
-            # Extract the number after the 'E'
-            energy_gained = int(dest_value[1:]) 
-            if self.current_turn == 'White':
-                self.white_energy += energy_gained
-            else:
-                self.black_energy += energy_gained
-
-        # Update the board matrix (leave the old position empty)
-        self.board[old_pos[0]][old_pos[1]] = '0'
+            # Cleaned the cell because the resource was consumed
+            self.board[new_row][new_col] = None
         
         # Place the horse letter in the new position and change the turn
-        if self.current_turn == 'White':
-            self.board[new_row][new_col] = 'W'
+        if self.current_turn == 'WHITE':
             self.white_pos = new_pos
-            self.current_turn = 'Black'
+            self.current_turn = 'BLACK'
         else:
-            self.board[new_row][new_col] = 'B'
             self.black_pos = new_pos
-            self.current_turn = 'White'
+            self.current_turn = 'WHITE'
 
 
     # Reglas de finalización: Cuando no queden casillas con puntos o
@@ -172,21 +123,23 @@ class GameState:
     def is_terminal_state(self):
         # Condition 1
         remaining_points = 0
-        for row in self.board:
-            for cell in row:
-                if str(cell).startswith('P'):
+        for row in range(BOARD_SIZE):
+            for col in range(BOARD_SIZE):
+                cell = self.board[row][col]
+
+                if cell is not None and cell[0] == "STAR":
                     remaining_points += 1
                     
         if remaining_points == 0:
             return True # Game over
             
         # Condition 2
-        # A player can move if they have energy (>0) and valid cells to jump to
-        white_moves = self.get_valid_moves('White')
-        black_moves = self.get_valid_moves('Black')
+        # A player can move if they have energy (>=1) and valid cells to jump to
+        white_moves = self.get_valid_moves('WHITE')
+        black_moves = self.get_valid_moves('BLACK')
         
-        white_can_move = len(white_moves) > 0 and self.white_energy > 0
-        black_can_move = len(black_moves) > 0 and self.black_energy > 0
+        white_can_move = len(white_moves) > 0 and self.white_energy >= MOVE_COST
+        black_can_move = len(black_moves) > 0 and self.black_energy >= MOVE_COST
         
         if not white_can_move and not black_can_move:
             return True # Game over
@@ -195,8 +148,32 @@ class GameState:
 
     def get_winner(self):
         if self.white_points > self.black_points:
-            return "White"
+            return "WHITE"
         elif self.black_points > self.white_points:
-            return "Black"
+            return "BLACK"
         else:
-            return "Empate"
+            return "EMPATE"
+
+    def print_board_terminal(self):
+        print("\n--- TABLERO DE KNIGHT ENERGY ---")
+        print(f"Blanco (IA): Pts={self.white_points}, E={self.white_energy} | Pos={self.white_pos}")
+        print(f"Negro (Humano): Pts={self.black_points}, E={self.black_energy} | Pos={self.black_pos}")
+        print("-" * 33)
+        
+        for r in range(BOARD_SIZE):
+            row_str = "|"
+            for c in range(BOARD_SIZE):
+                if (r, c) == self.white_pos:
+                    row_str += " 🦄W |"  # Caballo Blanco
+                elif (r, c) == self.black_pos:
+                    row_str += " 🐴B |"  # Caballo Negro
+                elif self.board[r][c] is not None:
+                    tipo, val = self.board[r][c]
+                    if tipo == "STAR":
+                        row_str += f" S{val} |"  # Estrella + Valor
+                    elif tipo == "ENERGY":
+                        row_str += f" E{val} |"  # Energía + Valor
+                else:
+                    row_str += "    |"  # Casilla vacía
+            print(row_str)
+            print("-" * 33)
