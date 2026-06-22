@@ -1,4 +1,5 @@
 import random
+import copy
 from src.constants import BOARD_SIZE, INITIAL_ENERGY, PENALTY_POINTS, MOVE_COST
 
 class GameState:
@@ -177,3 +178,7 @@ class GameState:
                     row_str += "    |"  # Casilla vacía
             print(row_str)
             print("-" * 33)
+
+    def clone(self):
+        """Retorna una copia profunda e independiente del estado actual del juego"""
+        return copy.deepcopy(self)
