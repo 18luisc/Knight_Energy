@@ -5,14 +5,13 @@ from src.ai_agent import get_best_move  # Importamos tu nueva IA
 def main():
     # 1. Selecciona la dificultad para la IA ('PRINCIPIANTE', 'AMATEUR', 'EXPERTO')
     # Cambia este valor para probar las profundidades (2, 4 o 6)
-    DIFICULTAD = 'PRINCIPIANTE' 
+    DIFICULTAD = 'EXPERTO' 
     
     game = GameState()
     
     print("=== ESTADO INICIAL DEL TABLERO ===")
     game.print_board_terminal()
 
-    # Ajustado a 'WHITE' para mantener consistencia con el resto del código
     white_moves = game.get_valid_moves('WHITE')    
     print(f"Movimientos válidos iniciales para el caballo blanco en {game.white_pos}: {white_moves}\n")
 
@@ -33,11 +32,11 @@ def main():
         
         if movimientos:
             if game.current_turn == 'WHITE':
-                # ¡AQUÍ ENTRA TU IA! Usa Minimax para decidir el mejor movimiento
+                # Usa Minimax para decidir el mejor movimiento
                 print(f"Turno {turnos_jugados} [WHITE - IA ({DIFICULTAD})]: Pensando...")
                 movimiento_elegido = get_best_move(game, DIFICULTAD)
                 
-                # Si por alguna razón extrema Minimax no devuelve nada, usamos un fallback al azar
+                # Si Minimax no devuelve nada, usamos un fallback al azar
                 if movimiento_elegido is None:
                     movimiento_elegido = random.choice(movimientos)
             else:
