@@ -1,5 +1,5 @@
 # Dimensiones de la pantalla
-WIDTH, HEIGHT = 800, 600
+WIDTH, HEIGHT = 900, 550
 BOARD_SIZE = 8
 SQUARE_SIZE = HEIGHT // BOARD_SIZE # Tablero cuadrado de 600x600
 
