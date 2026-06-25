@@ -1,12 +1,13 @@
+# pyrefly: ignore [missing-import]
 import pygame
 import sys
-from constants import WIDTH, HEIGHT, WHITE, BLACK
+from constants import WIDTH, HEIGHT, WHITE, BLACK, BOARD_SIZE
 
 class KnightEnergyGUI:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption("Knight Energy - Selección de Dificultad")
+        pygame.display.set_caption("Knight Energy")
         self.clock = pygame.time.Clock()
 
         # Fuentes
@@ -14,6 +15,7 @@ class KnightEnergyGUI:
         self.font_subtitle = pygame.font.SysFont('georgia', 14)
         self.font_button = pygame.font.SysFont('georgia', 18, bold=True)
         self.font_info = pygame.font.SysFont('segoeuisymbol, segoeuiemoji, arial', 14)
+        self.font_panel = pygame.font.SysFont('georgia', 16, bold=True)
         
         # Estado inicial
         self.running = True
@@ -38,15 +40,23 @@ class KnightEnergyGUI:
         self.color_btn_hover = (250, 243, 230)# Crema mas brillante
         self.color_shadow = (205, 195, 180)   # Sombra del botón
 
-        # Imagen de fondo
-        image_path = "background0.png" 
+        # Colores del tablero
+        self.color_board_light = (193, 154, 107) # Madera clara
+        self.color_board_dark = (101, 67, 33)    # Madera oscura
+
+        # Fondo para el menú
         try:
-            loaded_image = pygame.image.load(image_path).convert()
-            # Escalarla al tamaño de la pantalla para que encaje perfecto
-            self.background_image = pygame.transform.scale(loaded_image, (WIDTH, HEIGHT))
+            img_menu = pygame.image.load("background0.png").convert()
+            self.bg_menu = pygame.transform.scale(img_menu, (WIDTH, HEIGHT))
         except FileNotFoundError:
-            print(f"No se encontró la imagen '{image_path}'. Usando color sólido de respaldo.")
-            self.background_image = None
+            self.bg_menu = None
+
+        # Fondo para el tablero
+        try:
+            img_board = pygame.image.load("background6.png").convert() 
+            self.bg_board = pygame.transform.scale(img_board, (WIDTH, HEIGHT))
+        except FileNotFoundError:
+            self.bg_board = None
 
     def draw_text_centered(self, text, font, color, y, shadow=False):
         """Función auxiliar para centrar textos fácilmente"""
@@ -58,11 +68,30 @@ class KnightEnergyGUI:
         surf = font.render(text, True, color)
         self.screen.blit(surf, (WIDTH//2 - surf.get_width()//2, y))
 
+    def draw_text_at(self, text, font, color, cx, cy):
+        """Función auxiliar para centrar textos en coordenadas X e Y específicas"""
+        surf = font.render(text, True, color)
+        rect = surf.get_rect(center=(cx, cy))
+        self.screen.blit(surf, rect)
+
+    def draw_player_info(self, title, subtitle, points, energy, x, y):
+        """Dibuja el texto sobre los paneles con la información del jugador"""
+
+        self.draw_text_at(title, self.font_panel, self.color_text_dark, x, y + 40)
+        self.draw_text_at(subtitle, self.font_panel, self.color_text_dark, x, y + 65)
+
+        # Textos de estadísticas
+        points_text = f"PUNTOS: {points} ★"
+        energy_text = f"ENERGÍA: {energy} ⚡"
+        
+        self.draw_text_at(points_text, self.font_info, self.color_text_dark, x, y + 105)
+        self.draw_text_at(energy_text, self.font_info, self.color_text_dark, x, y + 135)
+
     def main_menu(self):
         while self.running and self.dificultad_seleccionada is None:
 
-            if self.background_image:
-                self.screen.blit(self.background_image, (0, 0))
+            if self.bg_menu:
+                self.screen.blit(self.bg_menu, (0, 0))
             else:
                 self.screen.fill(self.color_bg)
             # Textos Superiores
@@ -126,10 +155,66 @@ class KnightEnergyGUI:
         
         return self.dificultad_seleccionada
 
+    def run_game(self, dificultad):
+        
+        # Variables simuladas de estado del juego
+        maquina_pts, maquina_en = 25, 12
+        jugador_pts, jugador_en = 30, 8
+        
+        # Cálculos para centrar el tablero
+        # Suponemos que el tablero medirá el 75% del alto de la pantalla
+        sq_size = int(HEIGHT * 0.75) // 8
+        board_size = sq_size * 8  
+        board_x = WIDTH // 2 - board_size // 2
+        board_y = HEIGHT // 2 - board_size // 2
+
+        while self.running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                    pygame.quit()
+                    sys.exit()
+
+            # 1. Dibujar Fondo
+            if self.bg_board:
+                self.screen.blit(self.bg_board, (0, 0))
+            else:
+                self.screen.fill(self.color_bg)
+
+            # 2. Dibujar Información Lateral
+            # Panel Izquierdo (Máquina)
+            self.draw_player_info("MÁQUINA", "(BLANCA)", maquina_pts, maquina_en, 
+                                   x=110, y=HEIGHT//2 - 65)
+            
+            # Panel Derecho (Jugador)
+            self.draw_player_info("JUGADOR", "(NEGRA)", jugador_pts, jugador_en, 
+                                   x=WIDTH - 110, y=HEIGHT//2 - 65)
+
+            # 3. Dibujar Borde del Tablero
+            border_rect = pygame.Rect(board_x - 6, board_y - 6, board_size + 12, board_size + 12)
+            pygame.draw.rect(self.screen, self.color_gold, border_rect, width=6, border_radius=4)
+            pygame.draw.rect(self.screen, self.color_text_dark, border_rect, width=2, border_radius=4) # Borde interior fino
+
+            # 4. Dibujar Cuadrícula de 8x8
+            for row in range(BOARD_SIZE):
+                for col in range(BOARD_SIZE):
+                    rect = pygame.Rect(board_x + col * sq_size, board_y + row * sq_size, sq_size, sq_size)
+                    
+                    # Alternar colores como en el ajedrez
+                    if (row + col) % 2 == 0:
+                        color = self.color_board_light
+                    else:
+                        color = self.color_board_dark
+                        
+                    pygame.draw.rect(self.screen, color, rect)
+
+            pygame.display.flip()
+            self.clock.tick(60)
+
 if __name__ == "__main__":
     gui = KnightEnergyGUI()
     dificultad = gui.main_menu()
     if dificultad:
         print(f"Iniciando juego en modo {dificultad}...")
-        # Aquí llamaríamos a la siguiente fase: dibujar el tablero
+        gui.run_game(dificultad)
 
