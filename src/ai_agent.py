@@ -18,7 +18,8 @@ def heuristic_evaluation(game_state):
     energy_diff = game_state.white_energy - game_state.black_energy
 
     # Buscamos la estrella más cercana usando Distancia Manhattan
-    min_dist_score = math.inf
+
+    min_dist_score = math.inf  #Inicializamoss vlaor de distancia mínima
     
     white_r, white_c = game_state.white_pos
 
@@ -61,9 +62,7 @@ def minimax(game_state, depth, alpha, beta, is_maximizing):
         
         # Si no hay movimientos posibles pero el juego no ha terminado, pasa el turno
         if not valid_moves:
-            clon_estado = game_state.clone()
-            clon_estado.current_turn = 'BLACK'
-            evaluacion, _ = minimax(clon_estado, depth - 1, alpha, beta, False)
+            evaluacion =  pass_turn(game_state, depth, alpha, beta)
             return evaluacion, None
 
         for move in valid_moves:
@@ -93,9 +92,7 @@ def minimax(game_state, depth, alpha, beta, is_maximizing):
         valid_moves = game_state.get_valid_moves('BLACK')
         
         if not valid_moves:
-            clon_estado = game_state.clone()
-            clon_estado.current_turn = 'WHITE'
-            evaluacion, _ = minimax(clon_estado, depth - 1, alpha, beta, True)
+            evaluacion =  pass_turn(game_state, depth, alpha, beta)
             return evaluacion, None
 
         for move in valid_moves:
@@ -118,6 +115,15 @@ def minimax(game_state, depth, alpha, beta, is_maximizing):
                 
         return min_eval, best_move
 
+def pass_turn(game_state, depth, alpha, beta):
+    clon_estado = game_state.clone()
+    current_turn = clon_estado.current_turn
+    clon_estado.current_turn = 'BLACK' if current_turn == 'WHITE' else 'WHITE'
+    evaluacion, _ = minimax(clon_estado, depth - 1, alpha, beta, False)
+
+    return evaluacion, None
+
+    
 def get_best_move(game_state, difficulty):
     """
     Punto de entrada que define la profundidad límite según el nivel seleccionado.
