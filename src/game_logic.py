@@ -18,6 +18,10 @@ class GameState:
 
         # The game is always started by the machine (white horse)
         self.current_turn = 'WHITE' 
+        self.num_turns = 0
+
+        self.stars = []
+        self.energies = []
         
         self._initialize_board()
     
@@ -36,12 +40,14 @@ class GameState:
         for val in star_values:
             r, c = all_coordinates.pop()
             self.board[r][c] = ("STAR", val)
+            self.stars.append(((c,r), val))
 
         # Assign the rays (energy)
         energy_values = [2, 3, 4, 5] 
         for val in energy_values:
             r, c = all_coordinates.pop()
             self.board[r][c] = ("ENERGY", val)
+            self.energies.append(((c,r), val))
 
     # Retorna una lista de coordenadas (fila, columna) con los movimientos
     # validos para el jugador ('White' o 'Black').
@@ -65,11 +71,14 @@ class GameState:
         # Calculate the new positions and filter the ones that go off the board
         for new_row, new_col in possible_moves:
             if 0 <= new_row < BOARD_SIZE and 0 <= new_col < BOARD_SIZE:
-                # Se debe evitar que un caballo caiga en la casilla donde esta el otro caballo o no?
+                # Se debe evitar que un caballo caiga en la casilla donde esta el otro caballo
                 if (new_row, new_col) != self.white_pos and (new_row, new_col) != self.black_pos:
                     valid_moves.append((new_row, new_col))
                 
         return valid_moves
+    
+    def is_move_valid(self, player_color, move):
+        return move in self.get_valid_moves(player_color)
 
     def check_energy_penalty(self):
         if self.current_turn == 'WHITE' and self.white_energy < MOVE_COST:
@@ -85,6 +94,7 @@ class GameState:
     # Ejecuta el movimiento del jugador actual a la nueva posición (new_pos).
     # Actualiza el tablero, la energía, los puntos y cambia el turno.
     def make_move(self, new_pos):
+        self.num_turns += 1
         new_row, new_col = new_pos
         
         # Charge the cost of the movement
