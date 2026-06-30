@@ -347,10 +347,14 @@ class KnightEnergyGUI:
                             row = cell.row
                             col = cell.col
                             move = (row, col)
-                            if rect.collidepoint(event.pos) and not penalty and game.is_move_valid("BLACK", move) and game.current_turn == "BLACK":
-                                print(f"Moving to ({col}, {row})")
-                                self.ai_timer = 0
-                                self.update_player_position("BLACK", col, row)
+                            if rect.collidepoint(event.pos) and not penalty and game.current_turn == "BLACK":
+                                if game.is_move_valid("BLACK", move):
+                                    print(f"Moving to ({col}, {row})")
+                                    self.ai_timer = 0
+                                    self.update_player_position("BLACK", col, row)
+                                else:
+                                    warning_msg = "¡Movimiento inválido! El caballo se mueve en 'L'."
+                                    warning_timer = current_time + 1500
                                 
                 
             if game.current_turn == "WHITE" and self.game_started:
