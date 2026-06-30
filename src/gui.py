@@ -6,6 +6,7 @@ from src.game_logic import *
 from src.ai_agent import get_best_move  # Importar IA
 import queue
 import threading
+import random
 
 
 class cellGUI:
@@ -309,12 +310,27 @@ class KnightEnergyGUI:
         self.ai_cooldown = 1000  # Delay in milliseconds (1.5 seconds)
 
         self.game.print_board_terminal()
+        
+        warning_msg = ""
+        warning_timer = 0
 
         while self.running and not self.game.is_terminal_state():
             maquina_pts, maquina_en = game.white_points, game.white_energy
             jugador_pts, jugador_en = game.black_points, game.black_energy
             
+            current_time = pygame.time.get_ticks()
+
             penalty = game.check_energy_penalty()
+            if penalty:
+                warning_msg = "¡Penalización por energía! Turno perdido."
+                warning_timer = current_time + 2500
+            else:
+                movimientos = game.get_valid_moves(game.current_turn)
+                if not movimientos:
+                    jugador_actual = "MÁQUINA" if game.current_turn == 'WHITE' else "JUGADOR"
+                    warning_msg = f"¡Sin movimientos! {jugador_actual} pasa turno."
+                    warning_timer = current_time + 2500
+                    game.current_turn = 'BLACK' if game.current_turn == 'WHITE' else 'WHITE'
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -331,15 +347,18 @@ class KnightEnergyGUI:
                             row = cell.row
                             col = cell.col
                             move = (row, col)
-                            if rect.collidepoint(event.pos) and not penalty and game.is_move_valid("BLACK", move) and game.current_turn == "BLACK":
-                                print(f"Moving to ({col}, {row})")
-                                self.ai_timer = 0
-                                self.update_player_position("BLACK", col, row)
+                            if rect.collidepoint(event.pos) and not penalty and game.current_turn == "BLACK":
+                                if game.is_move_valid("BLACK", move):
+                                    print(f"Moving to ({col}, {row})")
+                                    self.ai_timer = 0
+                                    self.update_player_position("BLACK", col, row)
+                                else:
+                                    warning_msg = "¡Movimiento inválido! El caballo se mueve en 'L'."
+                                    warning_timer = current_time + 1500
                                 
                 
             if game.current_turn == "WHITE" and self.game_started:
                 
-                current_time = pygame.time.get_ticks()
                 if self.ai_timer == 0:
                     self.ai_timer = current_time + self.ai_cooldown
                 if current_time >= self.ai_timer:
@@ -357,7 +376,15 @@ class KnightEnergyGUI:
                 try:
                     ai_move = self.ai_queue.get_nowait() # Non-blocking check
                     print(f"AI MOVE: {ai_move}")
-                    self.update_player_position("WHITE", ai_move[1], ai_move[0])
+                    if ai_move:
+                        self.update_player_position("WHITE", ai_move[1], ai_move[0])
+                    else:
+                        # Fallback
+                        movs = game.get_valid_moves("WHITE")
+                        if movs:
+                            mov = random.choice(movs)
+                            self.update_player_position("WHITE", mov[1], mov[0])
+
                     self.ai_thinking = False
                     self.ai_timer = 0
 
@@ -391,7 +418,50 @@ class KnightEnergyGUI:
 
                 if square.visible:
                     self.screen.blit(square.surface, square.rect)
+            
+            # Dibujar mensaje de advertencia si está activo
+            if warning_timer > current_time:
+                # Fondo para el texto de advertencia para que resalte
+                padding_x, padding_y = 20, 10
+                text_surf = self.font_button.render(warning_msg, True, (200, 30, 30))
+                bg_rect = text_surf.get_rect(center=(WIDTH//2, 40))
+                bg_rect.inflate_ip(padding_x, padding_y)
+                pygame.draw.rect(self.screen, self.color_btn, bg_rect, border_radius=10)
+                pygame.draw.rect(self.screen, self.color_gold, bg_rect, width=2, border_radius=10)
+                self.screen.blit(text_surf, (bg_rect.x + padding_x//2, bg_rect.y + padding_y//2))
         
+            pygame.display.flip()
+            self.clock.tick(60)
+
+        # Si el bucle termina y el juego está en estado terminal, mostrar pantalla de Game Over
+        if self.game.is_terminal_state() and self.running:
+            self.show_game_over()
+
+    def show_game_over(self):
+        ganador = self.game.get_winner()
+        texto_ganador = f"¡GANADOR: MÁQUINA (BLANCA)!" if ganador == "WHITE" else (f"¡GANADOR: JUGADOR (NEGRA)!" if ganador == "BLACK" else "¡EMPATE!")
+        
+        # Overlay oscuro semitransparente
+        overlay = pygame.Surface((WIDTH, HEIGHT))
+        overlay.set_alpha(180)
+        overlay.fill(self.color_text_dark)
+        
+        while self.running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    return
+
+            self.screen.blit(overlay, (0, 0))
+
+            # Usar las fuentes del menú
+            self.draw_text_centered("JUEGO TERMINADO", self.font_title, self.color_gold, HEIGHT//2 - 60, shadow=True)
+            self.draw_text_centered(texto_ganador, self.font_subtitle, self.color_btn, HEIGHT//2 + 20)
+            self.draw_text_centered("Haz clic para salir", self.font_info, self.color_btn_hover, HEIGHT//2 + 70)
+
             pygame.display.flip()
             self.clock.tick(60)
     
