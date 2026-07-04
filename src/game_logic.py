@@ -165,30 +165,6 @@ class GameState:
         else:
             return "EMPATE"
 
-    def print_board_terminal(self):
-        print("\n--- TABLERO DE KNIGHT ENERGY ---")
-        print(f"Blanco (IA): Pts={self.white_points}, E={self.white_energy} | Pos={self.white_pos}")
-        print(f"Negro (Humano): Pts={self.black_points}, E={self.black_energy} | Pos={self.black_pos}")
-        print("-" * 33)
-        
-        for r in range(BOARD_SIZE):
-            row_str = "|"
-            for c in range(BOARD_SIZE):
-                if (r, c) == self.white_pos:
-                    row_str += " 🦄W |"  # Caballo Blanco
-                elif (r, c) == self.black_pos:
-                    row_str += " 🐴B |"  # Caballo Negro
-                elif self.board[r][c] is not None:
-                    tipo, val = self.board[r][c]
-                    if tipo == "STAR":
-                        row_str += f" S{val} |"  # Estrella + Valor
-                    elif tipo == "ENERGY":
-                        row_str += f" E{val} |"  # Energía + Valor
-                else:
-                    row_str += "    |"  # Casilla vacía
-            print(row_str)
-            print("-" * 33)
-
     def clone(self):
         """Retorna una copia profunda e independiente del estado actual del juego"""
         return copy.deepcopy(self)
