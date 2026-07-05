@@ -426,6 +426,21 @@ class KnightEnergyGUI:
                 pygame.draw.rect(self.screen, self.color_btn, bg_rect, border_radius=10)
                 pygame.draw.rect(self.screen, self.color_gold, bg_rect, width=2, border_radius=10)
                 self.screen.blit(text_surf, (bg_rect.x + padding_x//2, bg_rect.y + padding_y//2))
+
+            # =========================================================================
+            # NUEVA ADICIÓN: Mostrar cartel de inicio si la partida no ha comenzado
+            # =========================================================================
+            if not self.game_started:
+                # Dibujamos un banner sutil en la parte inferior o superior (ej: Y=40)
+                # Usamos draw_text_centered que ya creaste para mantener la estética limpia
+                self.draw_text_centered(
+                    "HAZ CLIC EN EL TABLERO PARA INICIAR LA BATALLA", 
+                    self.font_panel, 
+                    self.color_gold, 
+                    y=35, 
+                    shadow=False
+                )
+            # =========================================================================
         
             pygame.display.flip()
             self.clock.tick(60)
