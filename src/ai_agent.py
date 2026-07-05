@@ -1,142 +1,289 @@
-from src.constants import BOARD_SIZE
+from src.constants import BOARD_SIZE, MOVE_COST
 import math
-from src.constants import MOVE_COST
 
-def heuristic_evaluation(game_state):
+
+def heuristic_evaluation(game_state, difficulty):
     """
-    Función de utilidad heurística (temporal).
-    Evalúa qué tan buena es la posición actual para el caballo Blanco (IA).
+    Función de evaluación heurística que calcula una puntuación basada en:
+    - Diferencia de puntos entre jugadores
+    - Diferencia de energía entre jugadores
+    - Movilidad (número de movimientos válidos)
+    - Distancia a las estrellas y su valor
+    - Ventaja posicional basada en la distancia a las estrellas
     """
 
-    # Tenemos en cuenta si vamos ganando o no con los Puntos 
+    # Calcular diferencia de puntos (ventaja de la IA WHITE vs jugador BLACK)
     score_diff = game_state.white_points - game_state.black_points
-
-    # Si la energía del caballo blanco es menor a 3, le da prioridad a buscar rayos.
-    weight_energy = 5
-    if game_state.white_energy < 3:
-        weight_energy = 20
+    
+    # Calcular diferencia de energía (recurso crítico en el juego)
     energy_diff = game_state.white_energy - game_state.black_energy
 
-    # Buscamos la estrella más cercana usando Distancia Manhattan
+    # Calcular movilidad: ventaja en número de movimientos disponibles
+    white_moves = len(game_state.get_valid_moves("WHITE"))
+    black_moves = len(game_state.get_valid_moves("BLACK"))
+    mobility = white_moves - black_moves
 
-    min_dist_score = math.inf  #Inicializamoss vlaor de distancia mínima
-    
+    # Obtener posiciones actuales de ambos jugadores
     white_r, white_c = game_state.white_pos
+    black_r, black_c = game_state.black_pos
 
+    # Inicializar variables para evaluación de estrellas
+    min_dist_score = math.inf  # Distancia mínima ponderada a estrellas
+    best_star = 0              # Mejor puntuación de estrella para WHITE
+    advantage = 0              # Ventaja posicional acumulada
+
+    # Evaluar todas las celdas del tablero en busca de estrellas
     for r in range(BOARD_SIZE):
         for c in range(BOARD_SIZE):
             cell = game_state.board[r][c]
-            if cell is not None and cell[0] == "STAR":
-                star_value = cell[1]
-                # Distancia Manhattan: |x1 - x2| + |y1 - y2|
-                dist = abs(game_state.white_pos[0] - r) + abs(game_state.white_pos[1] - c)
 
-                # Las estrellas de mayor valor deben ser prioritarias pareciendo más cercanas
-                distance_score = dist- (star_value * 0.5)
-                if distance_score < min_dist_score:
-                    min_dist_score = distance_score
-            
-    # Si ya no quedan estrellas, anulamos el cálculo de distancia
+            # Omitir celdas vacías
+            if cell is None:
+                continue
+
+            # Omitir celdas que no sean estrellas
+            if cell[0] != "STAR":
+                continue
+
+            # Extraer el valor de la estrella
+            value = cell[1]
+
+            # Calcular distancia Manhattan desde cada jugador a la estrella
+            white_dist = abs(white_r - r) + abs(white_c - c)
+            black_dist = abs(black_r - r) + abs(black_c - c)
+
+            # Calcular score de distancia (penaliza a WHITE si está lejos)
+            distance_score = white_dist - (value * 0.5)
+
+            # Actualizar la distancia mínima encontrada
+            if distance_score < min_dist_score:
+                min_dist_score = distance_score
+
+            # Calcular score de la estrella (valor - distancia de WHITE)
+            star_score = value * 5 - white_dist
+
+            # Actualizar la mejor oportunidad de estrella
+            if star_score > best_star:
+                best_star = star_score
+
+            # Calcular ventaja posicional: BLACK más lejano = mejor para WHITE
+            advantage += (black_dist - white_dist) * value
+
+
+    # Si no hay estrellas en el tablero, neutralizar el score
     if min_dist_score == math.inf:
         min_dist_score = 0
-    
-    # Por ahora coloquemoslo así. Más puntos y energía es bueno. Más distancia es malo.
-    return (score_diff * 30) + (energy_diff * weight_energy) - (min_dist_score * 4)
 
-def minimax(game_state, depth, alpha, beta, is_maximizing):
+    # Nivel PRINCIPIANTE: enfoque simple en puntos y energía
+    if difficulty == "PRINCIPIANTE":
+        return (
+            score_diff * 30          # Diferencia de puntos es primordial
+            + energy_diff * 5        # Pequeña consideración de energía
+            - min_dist_score * 4     # Evitar alejarse demasiado de estrellas
+        )
+
+    # Nivel AMATEUR: balance entre puntos, energía y oportunidades de estrellas
+    elif difficulty == "AMATEUR":
+        return (
+            score_diff * 35          # Mayor énfasis en puntos
+            + energy_diff * 10       # Energía más importante
+            + best_star * 3          # Buscar las mejores estrellas
+            + mobility * 2           # Movilidad como factor secundario
+            - min_dist_score * 2     # Considerar distancia a estrellas
+        )
+
+    # Nivel EXPERTO: análisis profundo con todos los factores
+    else:
+        # Penalización por falta crítica de energía
+        energy_penalty = 0
+        if game_state.white_energy <= 2:
+            energy_penalty = -40  # Penalización severa si energía es crítica
+
+        return (
+            score_diff * 40          # Máximo peso en diferencia de puntos
+            + energy_diff * 15       # Energía es crítica en dificultad alta
+            + best_star * 5          # Prioritario alcanzar las mejores estrellas
+            + mobility * 5           # Libertad de movimiento es importante
+            + advantage              # Ventaja posicional acumulada
+            - min_dist_score         # Considerar todas las distancias
+            + energy_penalty         # Aplicar penalización si es necesaria
+        )
+
+
+def minimax(game_state, depth, alpha, beta, is_maximizing, difficulty):
     """
-    Algoritmo Minimax para decisiones imperfectas.
+    Algoritmo Minimax con poda Alpha-Beta para tomar decisiones óptimas.
+    Alterna entre maximizar (IA) y minimizar (jugador humano).
     """
-    # Caso base: profundidad alcanzada o estado terminal (fin del juego)
+
+    # ===== CASO BASE =====
+    # Se detiene cuando: 1) alcanza profundidad máxima, o 2) el juego terminó
     if depth == 0 or game_state.is_terminal_state():
-        return heuristic_evaluation(game_state), None
+        return heuristic_evaluation(game_state, difficulty), None
 
-    # Manejar penalizaciones por falta de energía antes de expandir nodos
+    # Aplicar penalización si algún jugador se queda sin energía
     game_state.check_energy_penalty()
 
+    # ===== FASE DE MAXIMIZACIÓN (turno de la IA - WHITE) =====
     if is_maximizing:
-        max_eval = -math.inf
+        max_eval = -math.inf  # Inicializar con valor mínimo posible
         best_move = None
-        # Obtener movimientos válidos para la IA (WHITE)
+
+        # Obtener todos los movimientos legales para WHITE (IA)
         valid_moves = game_state.get_valid_moves('WHITE')
-        
-        # Si no hay movimientos posibles pero el juego no ha terminado, pasa el turno
+
+        # Si no hay movimientos disponibles, pasar turno
         if not valid_moves:
-            evaluacion =  pass_turn(game_state, depth, alpha, beta)
+            evaluacion = pass_turn(
+                game_state,
+                depth,
+                alpha,
+                beta,
+                is_maximizing,
+                difficulty
+            )
             return evaluacion, None
 
+        # Evaluar cada movimiento posible
         for move in valid_moves:
-            # Simular el movimiento en una copia del tablero
+            # Crear copia del estado para simular el movimiento
             clon_estado = game_state.clone()
             clon_estado.make_move(move)
-            
-            # Evaluar recursivamente el movimiento del oponente (MIN)
-            evaluacion, _ = minimax(clon_estado, depth - 1, alpha, beta, False)
-            
+
+            # Recursivamente evaluar el siguiente nivel (turno del jugador)
+            evaluacion, _ = minimax(
+                clon_estado,
+                depth - 1,
+                alpha,
+                beta,
+                False,  # Siguiente es minimización (jugador)
+                difficulty
+            )
+
+            # Actualizar el mejor movimiento encontrado
             if evaluacion > max_eval:
                 max_eval = evaluacion
                 best_move = move
 
-            # Mini poda alpha-beta
+            # Actualizar límite alfa para poda
             alpha = max(alpha, evaluacion)
-            if beta <= alpha:
-                break 
 
-                
+            # Poda: si beta <= alfa, no hay punto en seguir explorando
+            if beta <= alpha:
+                break
+
         return max_eval, best_move
 
+    # ===== FASE DE MINIMIZACIÓN (turno del jugador - BLACK) =====
     else:
-        min_eval = math.inf
+        min_eval = math.inf   # Inicializar con valor máximo posible
         best_move = None
-        # Obtener movimientos válidos para el Humano (BLACK)
+
+        # Obtener todos los movimientos legales para BLACK (jugador)
         valid_moves = game_state.get_valid_moves('BLACK')
-        
+
+        # Si no hay movimientos disponibles, pasar turno
         if not valid_moves:
-            evaluacion =  pass_turn(game_state, depth, alpha, beta)
+            evaluacion = pass_turn(
+                game_state,
+                depth,
+                alpha,
+                beta,
+                is_maximizing,
+                difficulty
+            )
             return evaluacion, None
 
+        # Evaluar cada movimiento posible del jugador
         for move in valid_moves:
-            # Simular el movimiento en una copia del tablero
+            # Crear copia del estado para simular el movimiento
             clon_estado = game_state.clone()
             clon_estado.make_move(move)
-            
-            # Evaluar recursivamente el movimiento de la máquina (MAX)
-            evaluacion, _ = minimax(clon_estado, depth - 1, alpha, beta, True)
-            
+
+            # Recursivamente evaluar el siguiente nivel (turno de la IA)
+            evaluacion, _ = minimax(
+                clon_estado,
+                depth - 1,
+                alpha,
+                beta,
+                True,   # Siguiente es maximización (IA)
+                difficulty
+            )
+
+            # Actualizar el movimiento que minimiza el score de la IA
             if evaluacion < min_eval:
                 min_eval = evaluacion
                 best_move = move
 
-            # Mini poda alpha-beta
+            # Actualizar límite beta para poda
             beta = min(beta, evaluacion)
-            if beta <= alpha:
-                break 
 
-                
+            # Poda: si beta <= alfa, no hay punto en seguir explorando
+            if beta <= alpha:
+                break
+
         return min_eval, best_move
 
-def pass_turn(game_state, depth, alpha, beta):
+
+def pass_turn(game_state, depth, alpha, beta, is_maximizing, difficulty):
+    """
+    Maneja el caso cuando un jugador no tiene movimientos disponibles.
+    Cambia el turno al otro jugador y continúa la búsqueda minimax.
+    """
+
+    # Crear copia del estado para no modificar el original
     clon_estado = game_state.clone()
-    current_turn = clon_estado.current_turn
-    clon_estado.current_turn = 'BLACK' if current_turn == 'WHITE' else 'WHITE'
-    evaluacion, _ = minimax(clon_estado, depth - 1, alpha, beta, False)
+
+    # Cambiar el turno al otro jugador
+    clon_estado.current_turn = (
+        'BLACK'
+        if clon_estado.current_turn == 'WHITE'
+        else 'WHITE'
+    )
+
+    # Continuar búsqueda con turno invertido
+    evaluacion, _ = minimax(
+        clon_estado,
+        depth - 1,
+        alpha,
+        beta,
+        not is_maximizing,  # Invertir turno (si era maximización, ahora es minimización)
+        difficulty
+    )
 
     return evaluacion, None
 
-    
+
 def get_best_move(game_state, difficulty):
     """
-    Punto de entrada que define la profundidad límite según el nivel seleccionado.
-    Dificultades: 'PRINCIPIANTE' (2), 'AMATEUR' (4), 'EXPERTO' (6)
+    Punto de entrada principal para obtener el mejor movimiento de la IA.
+    Define la profundidad de búsqueda según el nivel de dificultad seleccionado.
+    
+    Dificultades y profundidades:
+        - PRINCIPIANTE: profundidad 2 (búsqueda superficial, rápida)
+        - AMATEUR: profundidad 4 (búsqueda moderada)
+        - EXPERTO: profundidad 6 (búsqueda profunda, cálculo intensivo)
     """
+
+    # Mapeo de dificultad a profundidad de búsqueda minimax
     depth_limits = {
         'PRINCIPIANTE': 2,
         'AMATEUR': 4,
         'EXPERTO': 6
     }
-    
+
+    # Obtener la profundidad correspondiente (por defecto 4 si no existe)
     depth = depth_limits.get(difficulty.upper(), 4)
-    # La máquina siempre busca maximizar ('WHITE')
-    # Iniciamos el Minimax con Alfa en -Infinito y Beta en +Infinito
-    _, move = minimax(game_state, depth, -math.inf, math.inf, True)
+
+    # Ejecutar minimax: la IA (WHITE) busca maximizar su evaluación
+    # Inicializar alpha con -inf (peor caso) y beta con +inf (mejor caso)
+    _, move = minimax(
+        game_state,
+        depth,
+        -math.inf,      # Alpha: límite inferior para maximización
+        math.inf,       # Beta: límite superior para minimización
+        True,           # is_maximizing: siempre es True para la IA
+        difficulty
+    )
+
     return move
