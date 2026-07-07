@@ -180,7 +180,6 @@ class KnightEnergyGUI:
     
     def update_player_position(self, player, col, row):
         self.game.make_move((row, col))
-        self.game.print_board_terminal()
         if player == "BLACK":
             self.black.update_grid_position(col, row, self.board_x, self.board_y)
         else:
@@ -309,8 +308,6 @@ class KnightEnergyGUI:
         self.ai_timer = 0       # Tracks when the AI is allowed to move
         self.ai_cooldown = 1000  # Delay in milliseconds (1.5 seconds)
 
-        self.game.print_board_terminal()
-        
         warning_msg = ""
         warning_timer = 0
 
@@ -429,6 +426,21 @@ class KnightEnergyGUI:
                 pygame.draw.rect(self.screen, self.color_btn, bg_rect, border_radius=10)
                 pygame.draw.rect(self.screen, self.color_gold, bg_rect, width=2, border_radius=10)
                 self.screen.blit(text_surf, (bg_rect.x + padding_x//2, bg_rect.y + padding_y//2))
+
+            # =========================================================================
+            # NUEVA ADICIÓN: Mostrar cartel de inicio si la partida no ha comenzado
+            # =========================================================================
+            if not self.game_started:
+                # Dibujamos un banner sutil en la parte inferior o superior (ej: Y=40)
+                # Usamos draw_text_centered que ya creaste para mantener la estética limpia
+                self.draw_text_centered(
+                    "HAZ CLIC EN EL TABLERO PARA INICIAR LA BATALLA", 
+                    self.font_panel, 
+                    self.color_gold, 
+                    y=35, 
+                    shadow=False
+                )
+            # =========================================================================
         
             pygame.display.flip()
             self.clock.tick(60)
@@ -438,39 +450,76 @@ class KnightEnergyGUI:
             self.show_game_over()
 
     def show_game_over(self):
-        ganador = self.game.get_winner()
-        texto_ganador = f"¡GANADOR: MÁQUINA (BLANCA)!" if ganador == "WHITE" else (f"¡GANADOR: JUGADOR (NEGRA)!" if ganador == "BLACK" else "¡EMPATE!")
+        winner = self.game.get_winner()
+        if winner == "WHITE":
+            winner_text = "¡LA MÁQUINA SE LLEVA LA VICTORIA!"
+        elif winner == "BLACK":
+            winner_text = "¡ENHORABUENA! HAS GANADO"
+        else:
+            winner_text = "¡ES UN EMPATE!"
+
+        machine_score = f"MÁQUINA: {self.game.white_points} ★   |   {self.game.white_energy} ⚡"
+        player_score = f"JUGADOR: {self.game.black_points} ★   |   {self.game.black_energy} ⚡"
         
-        # Overlay oscuro semitransparente
-        overlay = pygame.Surface((WIDTH, HEIGHT))
-        overlay.set_alpha(180)
-        overlay.fill(self.color_text_dark)
-        
+        btn_width, btn_height = 250, 50
+        btn_menu = pygame.Rect(WIDTH//2 - btn_width//2, 360, btn_width, btn_height)
+        btn_exit = pygame.Rect(WIDTH//2 - btn_width//2, 430, btn_width, btn_height)
+
         while self.running:
+            mouse_pos = pygame.mouse.get_pos()
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
                     pygame.quit()
                     sys.exit()
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    return
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if btn_menu.collidepoint(mouse_pos):
+                        return
+                    if btn_exit.collidepoint(mouse_pos):
+                        self.running = False
+                        pygame.quit()
+                        sys.exit()
 
-            self.screen.blit(overlay, (0, 0))
+            if self.bg_menu:
+                self.screen.blit(self.bg_menu, (0, 0))
+            else:
+                self.screen.fill(self.color_bg)
 
-            # Usar las fuentes del menú
-            self.draw_text_centered("JUEGO TERMINADO", self.font_title, self.color_gold, HEIGHT//2 - 60, shadow=True)
-            self.draw_text_centered(texto_ganador, self.font_subtitle, self.color_btn, HEIGHT//2 + 20)
-            self.draw_text_centered("Haz clic para salir", self.font_info, self.color_btn_hover, HEIGHT//2 + 70)
+            self.draw_text_centered("FIN DEL JUEGO", self.font_title, self.color_gold, 60, shadow=True)
+            self.draw_text_centered(winner_text, self.font_panel, self.color_text_dark, 150)
+            self.draw_text_centered("P U N T U A C I Ó N   F I N A L", self.font_subtitle, self.color_gold, 200)
+
+            score_rect = pygame.Rect(WIDTH//2 - 150, 240, 300, 90)
+            pygame.draw.rect(self.screen, self.color_btn, score_rect, border_radius=10)
+            pygame.draw.rect(self.screen, (215, 205, 190), score_rect, width=2, border_radius=10)
+            
+            self.draw_text_centered(machine_score, self.font_info, self.color_text_dark, 260)
+            self.draw_text_centered(player_score, self.font_info, self.color_text_dark, 295)
+
+            options = {'MENÚ PRINCIPAL': btn_menu, 'SALIR': btn_exit}
+            border_radius = btn_height // 2
+
+            for text, rect in options.items():
+                is_hover = rect.collidepoint(mouse_pos)
+                
+                shadow_rect = rect.copy()
+                shadow_rect.y += 4
+                pygame.draw.rect(self.screen, self.color_shadow, shadow_rect, border_radius=border_radius)
+                
+                current_color = self.color_btn_hover if is_hover else self.color_btn
+                display_rect = rect.copy()
+
+                if is_hover and pygame.mouse.get_pressed()[0]:
+                    display_rect.y += 3
+                    
+                pygame.draw.rect(self.screen, current_color, display_rect, border_radius=border_radius)
+                pygame.draw.rect(self.screen, (215, 205, 190), display_rect, width=2, border_radius=border_radius)
+                
+                text_color = self.color_gold if is_hover else self.color_text_dark
+                text_surf = self.font_button.render(text, True, text_color)
+                self.screen.blit(text_surf, (display_rect.centerx - text_surf.get_width()//2, 
+                                             display_rect.centery - text_surf.get_height()//2))
 
             pygame.display.flip()
             self.clock.tick(60)
-    
-        
-
-if __name__ == "__main__":
-    gui = KnightEnergyGUI((0,0), (0,1))
-    dificultad = gui.main_menu()
-    if dificultad:
-        print(f"Iniciando juego en modo {dificultad}...")
-        gui.run_game(dificultad)
-
