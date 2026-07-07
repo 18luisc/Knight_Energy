@@ -7,6 +7,7 @@ from src.ai_agent import get_best_move  # Importar IA
 import queue
 import threading
 import random
+import os
 
 
 class cellGUI:
@@ -69,6 +70,8 @@ class KnightEnergyGUI:
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("Knight Energy")
+        icon = pygame.transform.scale_by(pygame.image.load("black.png").convert_alpha(), 0.25)
+        pygame.display.set_icon(icon)
         self.clock = pygame.time.Clock()
 
         # Fuentes
@@ -256,28 +259,24 @@ class KnightEnergyGUI:
 
     # Draw background boad
     def create_board_surface(self):
-        # 1. Setup sizes
+        # Setup sizes
         board_size = BOARD_SIZE
         sq_size = int(HEIGHT * 0.75) // 8
         board_x = self.board_x
         board_y = self.board_y
 
-        # 2. Create a blank surface the size of the whole screen
+        # Create a blank surface the size of the whole screen
         # (or just the size of the board, but whole-screen is easier for positioning)
         bg_surface = pygame.Surface((WIDTH, HEIGHT))
 
-        # 3. Draw the background on our temporary surface
+        # Draw the background on our temporary surface
         if self.bg_board:
             bg_surface.blit(self.bg_board, (0, 0))
         else:
             bg_surface.fill(self.color_bg)
 
-        # 4. Draw Board Borders on the surface
-        border_rect = pygame.Rect(board_x - 6, board_y - 6, board_size + 12, board_size + 12)
-        pygame.draw.rect(bg_surface, self.color_gold, border_rect, width=6, border_radius=4)
-        pygame.draw.rect(bg_surface, self.color_text_dark, border_rect, width=2, border_radius=4)
 
-        # 5. Draw the 8x8 Grid AND build the cell logic list ONCE
+        # Draw the 8x8 Grid AND build the cell logic list ONCE
         self.cells = [] # Clear it just in case
         for row in range(BOARD_SIZE):
             for col in range(BOARD_SIZE):
@@ -288,6 +287,11 @@ class KnightEnergyGUI:
                 
                 # Keep track of cells
                 self.cells.append(cellGUI(rect, col, row))
+        
+         # Draw Board Borders on the surface
+        border_rect = pygame.Rect(board_x - 6, board_y - 6, board_size*sq_size + 12, board_size*sq_size + 12)
+        pygame.draw.rect(bg_surface, self.color_gold, border_rect, width=6, border_radius=4)
+        pygame.draw.rect(bg_surface, self.color_text_dark, border_rect, width=2, border_radius=4)
                 
         return bg_surface
     
@@ -319,7 +323,8 @@ class KnightEnergyGUI:
 
             penalty = game.check_energy_penalty()
             if penalty:
-                warning_msg = "¡Penalización por energía! Turno perdido."
+                jugador_actual = "MÁQUINA" if game.current_turn == 'BLACK' else "JUGADOR"
+                warning_msg = f"¡Penalización por energía para {jugador_actual}! Turno perdido."
                 warning_timer = current_time + 2500
             else:
                 movimientos = game.get_valid_moves(game.current_turn)
@@ -427,9 +432,9 @@ class KnightEnergyGUI:
                 pygame.draw.rect(self.screen, self.color_gold, bg_rect, width=2, border_radius=10)
                 self.screen.blit(text_surf, (bg_rect.x + padding_x//2, bg_rect.y + padding_y//2))
 
-            # =========================================================================
-            # NUEVA ADICIÓN: Mostrar cartel de inicio si la partida no ha comenzado
-            # =========================================================================
+
+            # Mostrar cartel de inicio si la partida no ha comenzado
+
             if not self.game_started:
                 # Dibujamos un banner sutil en la parte inferior o superior (ej: Y=40)
                 # Usamos draw_text_centered que ya creaste para mantener la estética limpia
@@ -440,7 +445,16 @@ class KnightEnergyGUI:
                     y=35, 
                     shadow=False
                 )
-            # =========================================================================
+            
+            if self.ai_thinking:
+                self.draw_text_centered(
+                            "Máquina pensando...", 
+                            self.font_panel, 
+                            self.color_gold, 
+                            y=35, 
+                            shadow=False
+                        )
+
         
             pygame.display.flip()
             self.clock.tick(60)
