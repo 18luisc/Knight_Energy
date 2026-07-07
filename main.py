@@ -5,7 +5,7 @@ from src.constants import WIDTH, HEIGHT, WHITE, BLACK, BOARD_SIZE
 from src.gui import KnightEnergyGUI
 
 
-def main():
+""" def main():
     # 1. Selecciona la dificultad para la IA ('PRINCIPIANTE', 'AMATEUR', 'EXPERTO')
     # Cambia este valor para probar las profundidades (2, 4 o 6)
     DIFICULTAD = None
@@ -72,7 +72,7 @@ def main():
     game.print_board_terminal()
     
     ganador = game.get_winner()
-    print(f"El ganador es -> {ganador} \n")
+    print(f"El ganador es -> {ganador} \n") """
 
 if __name__ == "__main__":
     gui = KnightEnergyGUI()
